@@ -1,0 +1,98 @@
+/*****************************************
+ * Name: Carlos Flores Rivera
+ * Operation: Transfer DPS368 Data to another microcontroller 
+ * Data Grab: DPS368 data to Teensy
+ * Used example i2c_background code for setup of DPS368 from the DPS368 Library
+ ****************************************/
+#include <Dps368.h>
+#include <Wire.h>
+
+Dps368 Dps368PressureSensor = Dps368();//Make an instance of the DPS
+
+ //Converting Celsius to Fahrenheight
+float celsiusToFahrenheit(float temp)
+{
+  return temp * 1.8 + 32.0;//Math Conversion 
+}
+
+//Average function to take all values
+float AVERAGE(float *VALS, int size)
+{
+  float sum = 0.0;
+  for (int i = 0; i < size; i++)
+  {
+    sum += VALS[i];//Gather all values at each index and add them to the float varible
+  }
+  return sum / size;//Return the average
+}
+
+void setup()
+{
+  Wire.begin(0x77);
+  pinMode(10, INPUT_PULLUP);//I2C pin pullup resistor
+  pinMode(11, INPUT_PULLUP);//I2C pin pullup resistor
+
+  //Wire.begin(0x77);//Set it to slave mode for the DPS368
+  Serial.begin(9600);//Baud Rate
+  while (!Serial)//Incase the Serial monitor isn't responding
+    ;
+  Dps368PressureSensor.begin(Wire);//Begins the sensor
+  //Choose between high measuring rates or higher precision 0-7
+  int16_t temp_mr = 2;//Temp Measuring Rate
+  int16_t temp_osr = 5;//Temp Oversampling Rate
+
+  int16_t prs_mr = 2;//Pressure Measure Rate
+  int16_t prs_osr = 5;//Pressure Oversampling rate
+  int16_t measure = Dps368PressureSensor.startMeasureBothCont(temp_mr, temp_osr, prs_mr, prs_osr);
+
+  if (measure != 0)
+  {
+    Serial.print("Init FAILED! value = ");//Setup is wrong
+    Serial.println(measure);
+  }
+  else
+  {
+    Serial.println("Init complete!");
+  }
+
+}
+
+void loop()
+{
+  //OUTPUT DATA TO SERIAL MONITOR
+  uint8_t pressureCount = 20;//Size of pressure array
+  float pressure[pressureCount];//Array with pressure size
+  uint8_t temperatureCount = 20;//Size of temp array
+  float temperature[temperatureCount];//Array with temp size
+
+  int measure = Dps368PressureSensor.getContResults(temperature, temperatureCount, pressure, pressureCount);
+
+  float averageTemperature, averagePressure, Fahren;
+  
+  if (measure != 0)
+  {
+    Serial.println();
+    Serial.print("FAIL!");//Somethings isn't right
+  }
+  else
+  {
+    averageTemperature = AVERAGE(temperature, temperatureCount);
+    averagePressure = AVERAGE(pressure, pressureCount);
+    Fahren = celsiusToFahrenheit(averageTemperature);
+    Serial.print(averageTemperature);
+    Serial.print(" °C/ ");
+    Serial.print(Fahren);
+    Serial.println(" °F");
+    Serial.print(averagePressure);
+    Serial.println(" Pascal");
+    Serial.println();
+  //SEND DATA TO TEENSY
+  Wire.beginTransmission(0x08);  //I2C address of the Teensy (made up)
+  Wire.write((uint8_t*)&averagePressure, sizeof(averagePressure));  //Send average pressure value
+  Wire.write((uint8_t*)&averageTemperature, sizeof(averageTemperature)); //Send average temperature value
+  Wire.write((uint8_t*)&Fahren, sizeof(Fahren));//Sends temp in fahren
+  Wire.endTransmission();
+  
+  delay(10000);//Buffer wait for DPS368
+  }
+}
