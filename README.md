@@ -1,5 +1,5 @@
 # BarometricSensor
-/*********************************************************Project*****************************************************\
+****************************************************Project****************************************************
 * DEVICES:
 * [Teensy 4.0](https://www.pjrc.com/store/teensy40.html)
 * [XMC 2Go Shield](https://www.infineon.com/cms/en/product/evaluation-boards/kit_xmc_2go_xmc1100_v1/)
